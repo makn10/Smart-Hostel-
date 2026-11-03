@@ -44,8 +44,11 @@ object GoogleAuthManager {
     }
 
     val clientId = try {
-      context.getString(R.string.default_web_client_id)
+      context.getString(R.string.default_web_client_id).takeIf { it.isNotBlank() }
     } catch (e: Exception) {
+      null
+    }
+    if (clientId.isNullOrBlank()) {
       onUnauthenticated()
       return
     }
@@ -87,8 +90,11 @@ object GoogleAuthManager {
     onAuthCancelled: () -> Unit
   ) {
     val clientId = try {
-      activity.getString(R.string.default_web_client_id)
+      activity.getString(R.string.default_web_client_id).takeIf { it.isNotBlank() }
     } catch (e: Exception) {
+      null
+    }
+    if (clientId.isNullOrBlank()) {
       onAuthError("Google Sign-In configuration missing: default_web_client_id not found")
       return
     }
