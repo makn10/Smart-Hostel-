@@ -1,0 +1,147 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile for authenticated members",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User unique ID matching auth.uid" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoUrl": { "type": "string", "description": "Avatar URL" },
+        "currentMessId": { "type": "string", "description": "Active joined mess ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update server timestamp" }
+      },
+      "required": ["uid", "displayName", "createdAt"]
+    },
+    "Mess": {
+      "title": "Mess",
+      "description": "Hostel/Mess group information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Mess ID" },
+        "name": { "type": "string", "description": "Mess display name" },
+        "code": { "type": "string", "description": "6-character unique join code" },
+        "managerId": { "type": "string", "description": "Owner / Manager user UID" },
+        "mealSystem": { "type": "string", "enum": ["fixed", "shared"], "description": "Fixed Rate or Shared Cost" },
+        "mealRatePaisa": { "type": "integer", "description": "Fixed meal rate in paisa (if fixed)" },
+        "currencySymbol": { "type": "string", "description": "Currency symbol, e.g. ৳" },
+        "memberIds": { "type": "array", "description": "List of member user UIDs" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp" }
+      },
+      "required": ["id", "name", "code", "managerId", "mealSystem", "createdAt"]
+    },
+    "MessMember": {
+      "title": "MessMember",
+      "description": "Member inside a specific mess",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Member ID" },
+        "userId": { "type": "string", "description": "Linked user account UID if claimed" },
+        "name": { "type": "string", "description": "Member full name" },
+        "role": { "type": "string", "enum": ["manager", "sub_manager", "member"], "description": "Role in mess" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "description": "Email" },
+        "active": { "type": "boolean", "description": "Active status" },
+        "openingBalancePaisa": { "type": "integer", "description": "Opening carry balance" },
+        "joinedAt": { "type": "string", "format": "date-time", "description": "Joining timestamp" }
+      },
+      "required": ["id", "name", "role", "active"]
+    },
+    "DailyMeal": {
+      "title": "DailyMeal",
+      "description": "Daily meal record for a member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Meal entry ID (date_memberId)" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "memberId": { "type": "string", "description": "Member ID" },
+        "memberName": { "type": "string", "description": "Member Name" },
+        "breakfast": { "type": "number", "description": "Breakfast meal count" },
+        "lunch": { "type": "number", "description": "Lunch meal count" },
+        "dinner": { "type": "number", "description": "Dinner meal count" },
+        "guests": { "type": "number", "description": "Guest meal count" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp" }
+      },
+      "required": ["id", "date", "memberId"]
+    },
+    "BazarRecordDoc": {
+      "title": "BazarRecordDoc",
+      "description": "Daily market shopping record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Record ID" },
+        "date": { "type": "string", "description": "Date of bazar" },
+        "shopperId": { "type": "string", "description": "Shopper member ID" },
+        "shopperName": { "type": "string", "description": "Shopper member name" },
+        "totalPaisa": { "type": "integer", "description": "Total spent in paisa" },
+        "itemsSummary": { "type": "string", "description": "Description of items" },
+        "addToDeposit": { "type": "boolean", "description": "Whether credited to shopper deposit" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["id", "date", "shopperId", "totalPaisa"]
+    },
+    "DepositDoc": {
+      "title": "DepositDoc",
+      "description": "Cash/Digital deposit record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Deposit ID" },
+        "date": { "type": "string", "description": "Deposit date" },
+        "memberId": { "type": "string", "description": "Member ID" },
+        "memberName": { "type": "string", "description": "Member name" },
+        "amountPaisa": { "type": "integer", "description": "Amount in paisa" },
+        "paymentMethod": { "type": "string", "description": "Cash, bKash, Nagad, etc." },
+        "note": { "type": "string", "description": "Optional note" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["id", "date", "memberId", "amountPaisa"]
+    },
+    "NoticeDoc": {
+      "title": "NoticeDoc",
+      "description": "Notice board message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notice ID" },
+        "title": { "type": "string", "description": "Notice title" },
+        "description": { "type": "string", "description": "Notice content" },
+        "pinned": { "type": "boolean", "description": "Whether pinned to top" },
+        "authorName": { "type": "string", "description": "Author name" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp" }
+      },
+      "required": ["id", "title", "description"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Individual user accounts and preferences"
+    },
+    "/messes/{messId}": {
+      "schema": { "$ref": "#/entities/Mess" },
+      "description": "Mess group configuration and manager assignment"
+    },
+    "/messes/{messId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/MessMember" },
+      "description": "Members affiliated with the mess"
+    },
+    "/messes/{messId}/meals/{mealId}": {
+      "schema": { "$ref": "#/entities/DailyMeal" },
+      "description": "Daily meals logged in the mess"
+    },
+    "/messes/{messId}/bazar/{bazarId}": {
+      "schema": { "$ref": "#/entities/BazarRecordDoc" },
+      "description": "Bazar shopping expenditures"
+    },
+    "/messes/{messId}/deposits/{depositId}": {
+      "schema": { "$ref": "#/entities/DepositDoc" },
+      "description": "Member balance deposits"
+    },
+    "/messes/{messId}/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/NoticeDoc" },
+      "description": "Notice board announcements"
+    }
+  }
+}

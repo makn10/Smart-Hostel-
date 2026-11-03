@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserProfile(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 150)) &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             (!('currentMessId' in data) || data.currentMessId == null || (data.currentMessId is string && data.currentMessId.size() <= 128));
+    }
+
+    function isValidMess(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.code is string && data.code.size() == 6 &&
+             data.managerId is string && data.managerId.size() <= 128 &&
+             data.mealSystem in ['fixed', 'shared'] &&
+             (!('mealRatePaisa' in data) || data.mealRatePaisa is int) &&
+             (!('currencySymbol' in data) || (data.currencySymbol is string && data.currencySymbol.size() <= 10)) &&
+             data.memberIds is list && data.memberIds.size() <= 100 &&
+             (data.memberIds.size() == 0 || data.memberIds[0] is string);
+    }
+
+    function isValidMessMember(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.role in ['manager', 'sub_manager', 'member'] &&
+             data.active is bool &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+             (!('openingBalancePaisa' in data) || data.openingBalancePaisa is int);
+    }
+
+    function isValidMeal(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() == 10 &&
+             data.memberId is string && data.memberId.size() <= 128 &&
+             (!('breakfast' in data) || data.breakfast is number) &&
+             (!('lunch' in data) || data.lunch is number) &&
+             (!('dinner' in data) || data.dinner is number) &&
+             (!('guests' in data) || data.guests is number);
+    }
+
+    function isValidBazar(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() == 10 &&
+             data.shopperId is string && data.shopperId.size() <= 128 &&
+             data.totalPaisa is int && data.totalPaisa >= 0 &&
+             (!('itemsSummary' in data) || (data.itemsSummary is string && data.itemsSummary.size() <= 1000)) &&
+             (!('addToDeposit' in data) || data.addToDeposit is bool);
+    }
+
+    function isValidDeposit(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() == 10 &&
+             data.memberId is string && data.memberId.size() <= 128 &&
+             data.amountPaisa is int && data.amountPaisa > 0 &&
+             (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 50)) &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 300));
+    }
+
+    function isValidNotice(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 150 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 2000 &&
+             (!('pinned' in data) || data.pinned is bool) &&
+             (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 100));
+    }
+
+    function isMessParticipant(messId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/messes/$(messId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/messes/$(messId)).data.memberIds;
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       incoming().uid == request.auth.uid &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       incoming().uid == existing().uid &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming());
+
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 2. Messes Root
+    match /messes/{messId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+                       incoming().managerId == request.auth.uid &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidMess(incoming());
+
+      allow update: if isSignedIn() &&
+                       (existing().managerId == request.auth.uid || request.auth.uid in incoming().memberIds) &&
+                       incoming().id == existing().id &&
+                       incoming().managerId == existing().managerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidMess(incoming());
+
+      allow delete: if isSignedIn() && existing().managerId == request.auth.uid;
+
+      // Subcollections
+      match /members/{memberId} {
+        allow read: if isMessParticipant(messId);
+        allow create, update: if isMessParticipant(messId) && isValidMessMember(incoming());
+        allow delete: if isMessParticipant(messId);
+      }
+
+      match /meals/{mealId} {
+        allow read: if isMessParticipant(messId);
+        allow create, update: if isMessParticipant(messId) && isValidMeal(incoming());
+        allow delete: if isMessParticipant(messId);
+      }
+
+      match /bazar/{bazarId} {
+        allow read: if isMessParticipant(messId);
+        allow create, update: if isMessParticipant(messId) && isValidBazar(incoming());
+        allow delete: if isMessParticipant(messId);
+      }
+
+      match /deposits/{depositId} {
+        allow read: if isMessParticipant(messId);
+        allow create, update: if isMessParticipant(messId) && isValidDeposit(incoming());
+        allow delete: if isMessParticipant(messId);
+      }
+
+      match /notices/{noticeId} {
+        allow read: if isMessParticipant(messId);
+        allow create, update: if isMessParticipant(messId) && isValidNotice(incoming());
+        allow delete: if isMessParticipant(messId);
+      }
+    }
+  }
+}
