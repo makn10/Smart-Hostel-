@@ -1,0 +1,6 @@
+{
+  "summary": "Plan to resolve the GitHub Actions build error by automatically installing Android SDK 36 (API 36) in the workflow before the Gradle build runs.",
+  "updatedAt": "2026-11-03T17:34:41.542704352Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

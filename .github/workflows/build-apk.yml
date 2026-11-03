@@ -40,6 +40,11 @@ jobs:
           fi
           echo "Java environment verified successfully: Java $JAVA_MAJOR (>= 17)"
 
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 platform-tools'
+
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
