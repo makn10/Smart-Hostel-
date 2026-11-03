@@ -68,10 +68,21 @@ jobs:
           fi
           echo "Temporary debug keystore verified."
 
+          # Automatically accept Android SDK licenses to prevent platform download prompt failures
+          if [ -n "$ANDROID_HOME" ]; then
+            echo "Accepting Android SDK licenses..."
+            mkdir -p "$ANDROID_HOME/licenses" || true
+            echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b68256972e51a4fb408d6ea9829c76" > "$ANDROID_HOME/licenses/android-sdk-license" 2>/dev/null || true
+            echo -e "\n84831b9409646a2b8e358d7b4c86e4e084857451\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license" 2>/dev/null || true
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || true
+          fi
+
       - name: Build debug APK
+        id: build_apk
         run: gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Verify debug APK
+        id: verify_apk
         run: |
           TARGET_APK="app/build/outputs/apk/debug/app-debug.apk"
           if [ ! -f "$TARGET_APK" ]; then
@@ -106,6 +117,7 @@ jobs:
           echo "Verified APK: $TARGET_APK ($(du -h "$TARGET_APK" | cut -f1))"
 
       - name: Upload debug APK artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
@@ -195,6 +207,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          BUILD_OUTCOME="${{ steps.build_apk.outcome }}"
           RELEASE_OUTCOME="${{ steps.publish_release.outcome }}"
           RELEASE_TAG="${{ steps.prepare_asset.outputs.tag_name }}"
           ASSET_NAME="${{ steps.prepare_asset.outputs.asset_name }}"
@@ -224,7 +237,7 @@ jobs:
               echo ""
               echo "📦 *Backup Artifact:* The standard GitHub Actions artifact \`app-debug-apk\` is also preserved in this workflow run."
             } >> "$GITHUB_STEP_SUMMARY"
-          else
+          elif [ "$BUILD_OUTCOME" = "success" ]; then
             echo "=== WARNING: GitHub Release Publishing Failed or Skipped ==="
             echo "Warning: GitHub Release publishing could not be completed, but the APK build succeeded."
             echo "The Actions artifact named 'app-debug-apk' remains available for download."
@@ -234,9 +247,24 @@ jobs:
               echo ""
               echo "✅ **Debug APK build succeeded!**"
               echo ""
-              echo "⚠️ **GitHub Release publishing did not complete**, but the built APK was safely uploaded."
+              echo "⚠️ **GitHub Release publishing did not complete**, but the built APK was safely uploaded to Artifacts."
               echo ""
-              echo "📦 **Download Artifact:**"
-              echo "Download the \`app-debug-apk\` artifact directly from the **Artifacts** section of this workflow run summary."
+              echo "#### Why did GitHub Release publishing pause?"
+              echo "GitHub repositories default to **Read-only** workflow permissions for the \`GITHUB_TOKEN\`. To enable GitHub Release creation:"
+              echo "1. On GitHub, navigate to your repository's **Settings** (top tab)."
+              echo "2. On the left sidebar under *Code and automation*, click **Actions** -> **General**."
+              echo "3. Scroll to **Workflow permissions**."
+              echo "4. Select **Read and write permissions** and check **Allow GitHub Actions to create and approve pull requests**."
+              echo "5. Click **Save**."
+              echo ""
+              echo "📦 **Download Artifact Now:**"
+              echo "You can download the \`app-debug-apk\` artifact right now directly from the **Artifacts** section at the top of this run summary."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "=== ERROR: Debug APK Build Failed ==="
+            {
+              echo "### ❌ Debug APK Build Failed"
+              echo ""
+              echo "The Gradle build task \`:app:assembleDebug\` did not complete. Check the \`Build debug APK\` step logs above for details."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
